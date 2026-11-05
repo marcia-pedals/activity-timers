@@ -13,6 +13,8 @@
         default = pkgs.mkShell {
           packages = [
             pkgs.firebase-tools
+            pkgs.xcodegen
+            pkgs.jq
           ];
         };
       });

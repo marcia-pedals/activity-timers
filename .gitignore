@@ -1,1 +1,7 @@
 .direnv/
+ios/*.xcodeproj/
+xcuserdata/
+DerivedData/
+build/
+.DS_Store
+firebase-debug.log

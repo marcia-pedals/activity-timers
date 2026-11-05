@@ -1,0 +1,36 @@
+# Source of truth for the Xcode project. Regenerate with `xcodegen` (from ios/)
+# after adding/removing files or changing settings; don't edit the .xcodeproj by hand.
+name: ActivityTimers
+options:
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    # Stay on 12.x: Firebase 13 gates Firestore behind a SwiftPM package trait,
+    # which Xcode 26.2 projects can't enable (build fails with "the 'Firestore'
+    # SwiftPM package trait is disabled").
+    from: 12.19.3
+targets:
+  ActivityTimers:
+    type: application
+    platform: iOS
+    sources: [ActivityTimers]
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.marcia-pedals.ActivityTimers
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 4Q3J7GB2S8
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Timers
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
