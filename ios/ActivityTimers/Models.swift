@@ -3,7 +3,8 @@ import Foundation
 
 // Firestore layout (all per-user, see firestore.rules):
 //   users/{uid}/groups/{groupId}         name: string, sortOrder: int
-//   users/{uid}/activityTypes/{typeId}   name: string, groupId: string|null, sortOrder: int
+//   users/{uid}/activityTypes/{typeId}   name: string, groupId: string|null, sortOrder: int,
+//                                        icon: string|null (SF Symbol name)
 //   users/{uid}/sessions/{sessionId}     activityTypeId: string, startedAt: timestamp,
 //                                        endedAt: timestamp|null (null = running)
 //
@@ -28,6 +29,7 @@ struct ActivityType: Identifiable, Equatable {
     let id: String
     let name: String
     let groupId: String?
+    let icon: String?
     let sortOrder: Int
 
     init?(_ doc: QueryDocumentSnapshot) {
@@ -36,6 +38,7 @@ struct ActivityType: Identifiable, Equatable {
         id = doc.documentID
         self.name = name
         groupId = d["groupId"] as? String
+        icon = d["icon"] as? String
         sortOrder = d["sortOrder"] as? Int ?? 0
     }
 }

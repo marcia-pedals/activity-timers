@@ -16,7 +16,12 @@ final class TimersStore {
     private(set) var hasPendingWrites = false
     private(set) var loaded = false
 
+    @ObservationIgnored private let uid: String
     @ObservationIgnored private let user: DocumentReference
+    @ObservationIgnored private let liveActivity = LiveActivityController()
+    /// Don't touch the Live Activity until both of these have loaded at least once,
+    /// or we'd end it on launch before we know a session is running.
+    @ObservationIgnored private var runningLoaded = false
     @ObservationIgnored private var listeners: [ListenerRegistration] = []
     @ObservationIgnored private var todayListener: ListenerRegistration?
     @ObservationIgnored private var pendingRunning = false
@@ -25,6 +30,7 @@ final class TimersStore {
     private var sessions: CollectionReference { user.collection("sessions") }
 
     init(uid: String) {
+        self.uid = uid
         user = Firestore.firestore().collection("users").document(uid)
     }
 
@@ -39,6 +45,7 @@ final class TimersStore {
                 MainActor.assumeIsolated {
                     self?.groups = snap.documents.compactMap(ActivityGroup.init)
                         .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+                    self?.syncLiveActivity()
                 }
             },
             user.collection("activityTypes").addSnapshotListener { [weak self] snap, _ in
@@ -47,6 +54,7 @@ final class TimersStore {
                     self?.types = snap.documents.compactMap(ActivityType.init)
                         .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
                     self?.loaded = true
+                    self?.syncLiveActivity()
                 }
             },
             sessions.whereField("endedAt", isEqualTo: NSNull())
@@ -56,6 +64,8 @@ final class TimersStore {
                         self?.running = snap.documents.compactMap(Session.init)
                         self?.pendingRunning = snap.metadata.hasPendingWrites
                         self?.updatePending()
+                        self?.runningLoaded = true
+                        self?.syncLiveActivity()
                     }
                 },
         ]
@@ -86,6 +96,7 @@ final class TimersStore {
                     self?.endedToday = snap.documents.compactMap(Session.init)
                     self?.pendingToday = snap.metadata.hasPendingWrites
                     self?.updatePending()
+                    self?.syncLiveActivity()
                 }
             }
     }
@@ -98,14 +109,16 @@ final class TimersStore {
 
     var runningSession: Session? { running.max { $0.startedAt < $1.startedAt } }
 
-    /// Time spent on `typeId` today (local calendar day), as of `now`.
-    func totalToday(_ typeId: String, now: Date) -> TimeInterval {
+    /// Time spent on `typeId` today (local calendar day), as of `now`, optionally
+    /// leaving out one session.
+    func totalToday(_ typeId: String, now: Date, excluding excludedId: String? = nil) -> TimeInterval {
         let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart)!
         var seen = Set<String>()
         var total: TimeInterval = 0
         // A session moves from `running` to `endedToday` when stopped; dedupe by id
         // in case both listeners briefly hold it.
-        for s in running + endedToday where s.activityTypeId == typeId && seen.insert(s.id).inserted {
+        for s in running + endedToday
+        where s.activityTypeId == typeId && s.id != excludedId && seen.insert(s.id).inserted {
             total += s.duration(overlapping: dayStart, dayEnd, now: now)
         }
         return total
@@ -116,38 +129,39 @@ final class TimersStore {
     }
 
     // MARK: - Actions
-    //
-    // Writes are fire-and-forget: the local cache (and therefore the UI) updates
-    // immediately, and Firestore syncs to the server whenever it can. Awaiting the
-    // commit would hang while offline.
 
     /// Stops whatever is running and starts `typeId`.
     func start(_ typeId: String) {
         if running.count == 1, running[0].activityTypeId == typeId { return }
-        let now = Date()
-        let batch = user.firestore.batch()
-        for s in running {
-            batch.updateData(["endedAt": Timestamp(date: now)], forDocument: sessions.document(s.id))
-        }
-        batch.setData([
-            "activityTypeId": typeId,
-            "startedAt": Timestamp(date: now),
-            "endedAt": NSNull(), // must be explicitly null so the "running" query matches
-        ], forDocument: sessions.document())
-        batch.commit { error in
-            if let error { print("start failed: \(error)") }
-        }
+        TimerActions.switchTo(typeId, endingRunning: running.map(\.id), uid: uid)
     }
 
     func stop() {
         guard !running.isEmpty else { return }
-        let now = Date()
-        let batch = user.firestore.batch()
-        for s in running {
-            batch.updateData(["endedAt": Timestamp(date: now)], forDocument: sessions.document(s.id))
+        TimerActions.switchTo(nil, endingRunning: running.map(\.id), uid: uid)
+    }
+
+    // MARK: - Live Activity
+
+    private func syncLiveActivity() {
+        guard loaded, runningLoaded else { return }
+        guard let session = runningSession,
+              let type = types.first(where: { $0.id == session.activityTypeId }) else {
+            liveActivity.sync(nil)
+            return
         }
-        batch.commit { error in
-            if let error { print("stop failed: \(error)") }
-        }
+        // Time already logged today, not counting this session. The session's
+        // today-portion starts at max(start, midnight), so counting up from
+        // (that - prior) shows the full total.
+        let prior = totalToday(type.id, now: .now, excluding: session.id)
+        let todayCountingFrom = max(session.startedAt, dayStart).addingTimeInterval(-prior)
+        liveActivity.sync(.init(
+            sessionId: session.id,
+            activityName: type.name,
+            iconName: type.icon,
+            groupName: type.groupId.flatMap { id in groups.first { $0.id == id }?.name },
+            sessionStartedAt: session.startedAt,
+            todayCountingFrom: todayCountingFrom
+        ))
     }
 }

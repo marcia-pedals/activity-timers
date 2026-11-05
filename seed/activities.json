@@ -4,11 +4,10 @@
     { "id": "good", "name": "Good" }
   ],
   "activityTypes": [
-    { "id": "level1", "name": "Level 1", "groupId": "bad" },
-    { "id": "level2", "name": "Level 2", "groupId": "bad" },
-    { "id": "level3", "name": "Level 3", "groupId": "bad" },
-    { "id": "level4", "name": "Level 4", "groupId": "bad" },
-    { "id": "relaxing-yoga", "name": "Relaxing Yoga", "groupId": "good" }
+    { "id": "level1", "name": "Level 1", "groupId": "bad", "icon": "1.circle.fill" },
+    { "id": "level2", "name": "Level 2", "groupId": "bad", "icon": "2.circle.fill" },
+    { "id": "level3", "name": "Level 3", "groupId": "bad", "icon": "3.circle.fill" },
+    { "id": "level4", "name": "Level 4", "groupId": "bad", "icon": "4.circle.fill" },
+    { "id": "relaxing-yoga", "name": "Relaxing Yoga", "groupId": "good", "icon": "figure.mind.and.body" }
   ]
 }
-

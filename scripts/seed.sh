@@ -3,6 +3,9 @@
 # for one user. Safe to re-run: documents are keyed by the "id" fields, so existing
 # ones are updated in place. Items removed from the JSON are NOT deleted.
 #
+# "icon" is an SF Symbol name (browse them in Apple's SF Symbols app); it's shown
+# in the Dynamic Island. Missing/unknown names fall back to a timer icon.
+#
 # Usage: scripts/seed.sh you@example.com [path/to/activities.json]
 set -euo pipefail
 
@@ -58,6 +61,7 @@ done < <(jq -r '.activityTypes | to_entries[] |
   [.value.id, ({
     name: {stringValue: .value.name},
     groupId: (if .value.groupId then {stringValue: .value.groupId} else {nullValue: null} end),
+    icon: (if .value.icon then {stringValue: .value.icon} else {nullValue: null} end),
     sortOrder: {integerValue: (.key | tostring)}
   } | tojson)] | @tsv' "$file")
 

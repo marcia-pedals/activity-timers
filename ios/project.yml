@@ -4,6 +4,14 @@ name: ActivityTimers
 options:
   deploymentTarget:
     iOS: "17.0"
+settings:
+  base:
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 4Q3J7GB2S8
 packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
@@ -15,22 +23,38 @@ targets:
   ActivityTimers:
     type: application
     platform: iOS
-    sources: [ActivityTimers]
+    # Shared/ is compiled into both the app and the widget extension.
+    sources: [ActivityTimers, Shared]
     dependencies:
       - package: Firebase
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - target: ActivityTimersWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.marcia-pedals.ActivityTimers
-        MARKETING_VERSION: "0.1"
-        CURRENT_PROJECT_VERSION: "1"
-        SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
-        CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: 4Q3J7GB2S8
+        # Lets shared code (e.g. StopTimerIntent) do app-only work.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) MAIN_APP
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Timers
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+
+  # Live Activity UI (Lock Screen + Dynamic Island). Later: home/lock screen widgets.
+  ActivityTimersWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [ActivityTimersWidgets, Shared]
+    info:
+      path: ActivityTimersWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Timers
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.marcia-pedals.ActivityTimers.Widgets

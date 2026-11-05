@@ -64,9 +64,10 @@ struct TimersView: View {
             store.start(type.id)
         } label: {
             HStack {
-                Image(systemName: isRunning ? "record.circle.fill" : "play.circle")
+                Image(systemName: resolvedSymbolName(type.icon))
                     .foregroundStyle(isRunning ? Color.red : Color.accentColor)
                     .symbolEffect(.pulse, isActive: isRunning)
+                    .frame(width: 32)
                 Text(type.name)
                     .foregroundStyle(.primary)
                     .fontWeight(isRunning ? .semibold : .regular)
