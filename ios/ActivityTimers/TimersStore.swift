@@ -16,7 +16,7 @@ final class TimersStore {
     private(set) var hasPendingWrites = false
     private(set) var loaded = false
 
-    @ObservationIgnored private let uid: String
+    @ObservationIgnored let uid: String
     @ObservationIgnored private let user: DocumentReference
     @ObservationIgnored private let liveActivity = LiveActivityController()
     /// Don't touch the Live Activity until both of these have loaded at least once,

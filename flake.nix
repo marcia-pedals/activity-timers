@@ -15,6 +15,7 @@
             pkgs.firebase-tools
             pkgs.xcodegen
             pkgs.jq
+            pkgs.python3
           ];
         };
       });

@@ -34,6 +34,30 @@ enum TimerActions {
         }
     }
 
+    /// Records a finished session after the fact.
+    static func addSession(typeId: String, start: Date, end: Date, uid: String) {
+        sessions(uid: uid).addDocument(data: [
+            "activityTypeId": typeId,
+            "startedAt": Timestamp(date: start),
+            "endedAt": Timestamp(date: end),
+        ]) { error in
+            if let error { print("session add failed: \(error)") }
+        }
+    }
+
+    /// Updates fields of an existing session (e.g. from the sessions editor).
+    static func updateSession(_ id: String, fields: [String: Any], uid: String) {
+        sessions(uid: uid).document(id).updateData(fields) { error in
+            if let error { print("session update failed: \(error)") }
+        }
+    }
+
+    static func deleteSession(_ id: String, uid: String) {
+        sessions(uid: uid).document(id).delete { error in
+            if let error { print("session delete failed: \(error)") }
+        }
+    }
+
     /// Stops all running sessions without needing a TimersStore (used by the Live
     /// Activity's Stop button, which may run with the app in the background).
     static func stopAllRunning() async {

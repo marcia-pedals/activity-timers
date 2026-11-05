@@ -23,6 +23,20 @@ struct TimersView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        StatsView(timers: store)
+                    } label: {
+                        Label("Stats", systemImage: "chart.xyaxis.line")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SessionsView(timers: store)
+                    } label: {
+                        Label("Sessions", systemImage: "list.bullet.rectangle")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button("Sign Out", role: .destructive, action: onSignOut)
                     } label: {
