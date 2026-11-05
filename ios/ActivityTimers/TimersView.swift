@@ -3,6 +3,11 @@ import SwiftUI
 struct TimersView: View {
     let onSignOut: () -> Void
     @State private var store: TimersStore
+    @State private var path: [Screen] = []
+
+    private enum Screen: Hashable {
+        case stats, sessions
+    }
 
     init(uid: String, onSignOut: @escaping () -> Void) {
         self.onSignOut = onSignOut
@@ -10,7 +15,7 @@ struct TimersView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 content(now: context.date)
             }
@@ -23,16 +28,12 @@ struct TimersView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        StatsView(timers: store)
-                    } label: {
+                    NavigationLink(value: Screen.stats) {
                         Label("Stats", systemImage: "chart.xyaxis.line")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SessionsView(timers: store)
-                    } label: {
+                    NavigationLink(value: Screen.sessions) {
                         Label("Sessions", systemImage: "list.bullet.rectangle")
                     }
                 }
@@ -44,8 +45,19 @@ struct TimersView: View {
                     }
                 }
             }
+            .navigationDestination(for: Screen.self) { screen in
+                switch screen {
+                case .stats: StatsView(timers: store)
+                case .sessions: SessionsView(timers: store)
+                }
+            }
         }
         .task { await store.run() }
+        // Widget / Live Activity taps open activitytimers://timers: go back to the
+        // main screen (popping a pushed screen also dismisses its sheets).
+        .onOpenURL { url in
+            if url.host == timersScreenURL.host { path = [] }
+        }
     }
 
     @ViewBuilder

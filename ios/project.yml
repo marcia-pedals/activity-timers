@@ -31,6 +31,11 @@ targets:
       - package: Firebase
         product: FirebaseFirestore
       - target: ActivityTimersWidgets
+    entitlements:
+      path: ActivityTimers/ActivityTimers.entitlements
+      properties:
+        # Shared storage for the Lock Screen widget's data (TodaySnapshot).
+        com.apple.security.application-groups: [group.io.github.marcia-pedals.ActivityTimers]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.marcia-pedals.ActivityTimers
@@ -42,11 +47,15 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
 
-  # Live Activity UI (Lock Screen + Dynamic Island). Later: home/lock screen widgets.
+  # Live Activity UI (Lock Screen + Dynamic Island) and the Lock Screen widget.
   ActivityTimersWidgets:
     type: app-extension
     platform: iOS
     sources: [ActivityTimersWidgets, Shared]
+    entitlements:
+      path: ActivityTimersWidgets/ActivityTimersWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.io.github.marcia-pedals.ActivityTimers]
     info:
       path: ActivityTimersWidgets/Info.plist
       properties:

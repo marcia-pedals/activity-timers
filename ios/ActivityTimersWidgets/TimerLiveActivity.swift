@@ -7,6 +7,7 @@ import WidgetKit
 struct ActivityTimersWidgets: WidgetBundle {
     var body: some Widget {
         TimerLiveActivity()
+        TodayTotalsWidget()
     }
 }
 
@@ -22,6 +23,7 @@ struct TimerLiveActivity: Widget {
         ActivityConfiguration(for: TimerActivityAttributes.self) { context in
             LockScreenView(state: context.state)
                 .padding()
+                .widgetURL(timersScreenURL)
         } dynamicIsland: { context in
             let state = context.state
             return DynamicIsland {
@@ -56,6 +58,7 @@ struct TimerLiveActivity: Widget {
             } minimal: {
                 ActivityIcon(state: state)
             }
+            .widgetURL(timersScreenURL)
         }
     }
 }

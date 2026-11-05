@@ -1,6 +1,7 @@
 import FirebaseFirestore
 import Foundation
 import Observation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -77,6 +78,7 @@ final class TimersStore {
             if today != dayStart {
                 dayStart = today
                 listenToday()
+                syncLiveActivity()
             }
         }
 
@@ -145,6 +147,7 @@ final class TimersStore {
 
     private func syncLiveActivity() {
         guard loaded, runningLoaded else { return }
+        syncWidgetSnapshot()
         guard let session = runningSession,
               let type = types.first(where: { $0.id == session.activityTypeId }) else {
             liveActivity.sync(nil)
@@ -163,5 +166,42 @@ final class TimersStore {
             sessionStartedAt: session.startedAt,
             todayCountingFrom: todayCountingFrom
         ))
+    }
+
+    // MARK: - Lock Screen widget
+
+    /// Writes today's per-group totals for the widget and reloads it if they changed.
+    private func syncWidgetSnapshot() {
+        let now = Date()
+        let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart)!
+        let groupIds = Set(groups.map(\.id))
+        func groupId(ofType typeId: String) -> String {
+            if let g = types.first(where: { $0.id == typeId })?.groupId, groupIds.contains(g) { return g }
+            return TodaySnapshot.otherGroupId
+        }
+
+        var out = groups.map { TodaySnapshot.Group(id: $0.id, name: $0.name, finishedSeconds: 0) }
+        if types.contains(where: { groupId(ofType: $0.id) == TodaySnapshot.otherGroupId }) {
+            out.append(.init(id: TodaySnapshot.otherGroupId, name: "Other", finishedSeconds: 0))
+        }
+        let current = runningSession
+        var seen = Set<String>()
+        for s in running + endedToday where s.id != current?.id && seen.insert(s.id).inserted {
+            if let i = out.firstIndex(where: { $0.id == groupId(ofType: s.activityTypeId) }) {
+                out[i].finishedSeconds += s.duration(overlapping: dayStart, dayEnd, now: now)
+            }
+        }
+        // Round so tiny float differences don't count as changes.
+        for i in out.indices { out[i].finishedSeconds = out[i].finishedSeconds.rounded() }
+
+        let snapshot = TodaySnapshot(
+            day: dayStart,
+            groups: out,
+            runningGroupId: current.map { groupId(ofType: $0.activityTypeId) },
+            runningStartedAt: current?.startedAt
+        )
+        if snapshot.save() {
+            WidgetCenter.shared.reloadTimelines(ofKind: TodaySnapshot.widgetKind)
+        }
     }
 }

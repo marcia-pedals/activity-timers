@@ -2,6 +2,7 @@ import FirebaseAuth
 import FirebaseCore
 import FirebaseFirestore
 import Foundation
+import WidgetKit
 
 /// Session writes shared by the UI (TimersStore) and App Intents.
 ///
@@ -72,5 +73,8 @@ enum TimerActions {
         }
         guard !docs.isEmpty else { return }
         switchTo(nil, endingRunning: docs.map(\.documentID), uid: uid)
+        if let snapshot = TodaySnapshot.load()?.stoppingRunning(at: .now), snapshot.save() {
+            WidgetCenter.shared.reloadTimelines(ofKind: TodaySnapshot.widgetKind)
+        }
     }
 }
