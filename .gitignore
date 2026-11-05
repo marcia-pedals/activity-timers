@@ -5,3 +5,4 @@ DerivedData/
 build/
 .DS_Store
 firebase-debug.log
+__pycache__/
