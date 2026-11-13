@@ -133,18 +133,26 @@ enum StatsMath {
         return result
     }
 
+    /// Average hours per day for each activity in each bucket, counting only the
+    /// days that count: not marked excluded, and with at least one session (in any
+    /// activity). Buckets with no such days get no points at all, so the daily
+    /// chart skips those days and the weekly/monthly averages ignore them.
     static func points(
         totals: [String: [Date: TimeInterval]],
         typeIds: [String],
-        buckets: [(start: Date, days: [Date])]
+        buckets: [(start: Date, days: [Date])],
+        excludedDays: Set<String>
     ) -> [StatsPoint] {
-        typeIds.flatMap { typeId in
-            buckets.map { bucket in
-                let sum = bucket.days.reduce(0) { $0 + (totals[typeId]?[$1] ?? 0) }
+        let tracked = Set(totals.values.flatMap { $0.filter { $0.value > 0 }.keys })
+        return buckets.flatMap { bucket -> [StatsPoint] in
+            let days = bucket.days.filter { tracked.contains($0) && !excludedDays.contains(dayKey($0)) }
+            guard !days.isEmpty else { return [] }
+            return typeIds.map { typeId in
+                let sum = days.reduce(0) { $0 + (totals[typeId]?[$1] ?? 0) }
                 return StatsPoint(
                     typeId: typeId,
                     bucketStart: bucket.start,
-                    hoursPerDay: sum / Double(bucket.days.count) / 3600
+                    hoursPerDay: sum / Double(days.count) / 3600
                 )
             }
         }

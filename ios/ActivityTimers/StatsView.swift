@@ -15,11 +15,16 @@ struct StatsView: View {
     init(timers: TimersStore) {
         self.timers = timers
         _store = State(initialValue: StatsStore(uid: timers.uid))
+        if let daysAgo = DebugLaunch.statsSelectDaysAgo {
+            let cal = Calendar.current
+            let day = cal.date(byAdding: .day, value: -daysAgo, to: cal.startOfDay(for: .now))!
+            _selectedDate = State(initialValue: day.addingTimeInterval(12 * 3600))
+        }
     }
 
     var body: some View {
         let model = Model(
-            sessions: store.sessions, types: timers.types,
+            sessions: store.sessions, types: timers.types, excludedDays: timers.excludedDays.union(DebugLaunch.excludeDays),
             range: range, granularity: granularity, now: .now
         )
         List {
@@ -58,6 +63,8 @@ struct StatsView: View {
                 }
             } header: {
                 Text("Average per day")
+            } footer: {
+                Text("Leaves out days with no sessions and days marked in Sessions as not fully tracked.")
             }
 
             Section {
@@ -155,7 +162,17 @@ struct StatsView: View {
         }
         .padding(8)
         .frame(maxWidth: 220)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        // A solid card: materials inside chart annotations re-render glitchily
+        // while the selection moves.
+        .background {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 0.5)
+        }
     }
 
     private func bucketLabel(_ start: Date) -> String {
@@ -185,6 +202,7 @@ struct StatsView: View {
                 Spacer()
             }
         }
+        .tint(.primary)
         .accessibilityValue(isHidden ? "Hidden" : "Shown")
     }
 
@@ -229,10 +247,11 @@ private struct Model {
     let points: [StatsPoint]
     let bucketCount: Int
     private let bucketStarts: [Date]
+    private let component: Calendar.Component
     private let byKey: [String: Double]
 
-    init(sessions: [Session], types: [ActivityType], range: StatsRange,
-         granularity: StatsGranularity, now: Date) {
+    init(sessions: [Session], types: [ActivityType], excludedDays: Set<String>,
+         range: StatsRange, granularity: StatsGranularity, now: Date) {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
         let first = min(
@@ -241,15 +260,23 @@ private struct Model {
         )
         let totals = StatsMath.dailyTotals(sessions, firstDay: first, lastDay: today, now: now)
         let buckets = StatsMath.buckets(firstDay: first, lastDay: today, granularity: granularity)
-        points = StatsMath.points(totals: totals, typeIds: types.map(\.id), buckets: buckets)
-        bucketCount = buckets.count
-        bucketStarts = buckets.map(\.start)
+        points = StatsMath.points(
+            totals: totals, typeIds: types.map(\.id), buckets: buckets, excludedDays: excludedDays)
+        // Only buckets that have data (see StatsMath.points).
+        bucketStarts = Array(Set(points.map(\.bucketStart))).sorted()
+        bucketCount = bucketStarts.count
+        component = granularity.component
         byKey = Dictionary(uniqueKeysWithValues: points.map { ($0.id, $0.hoursPerDay) })
     }
 
-    /// The bucket a selected chart date falls into.
+    /// The bucket a selected chart date falls into, or the nearest one with data
+    /// (left-out days have no point to show).
     func bucket(containing date: Date) -> Date? {
-        bucketStarts.last { $0 <= date } ?? bucketStarts.first
+        if let start = Calendar.current.dateInterval(of: component, for: date)?.start,
+           bucketStarts.contains(start) {
+            return start
+        }
+        return bucketStarts.min { abs($0.timeIntervalSince(date)) < abs($1.timeIntervalSince(date)) }
     }
 
     func value(typeId: String, bucket: Date) -> Double {

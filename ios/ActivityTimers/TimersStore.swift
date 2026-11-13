@@ -15,6 +15,8 @@ final class TimersStore {
     private(set) var dayStart = Calendar.current.startOfDay(for: .now)
     /// True while local session changes haven't reached the server yet (e.g. offline).
     private(set) var hasPendingWrites = false
+    /// Day keys (see `dayKey`) marked as incomplete; left out of stats.
+    private(set) var excludedDays: Set<String> = []
     private(set) var loaded = false
 
     @ObservationIgnored let uid: String
@@ -56,6 +58,12 @@ final class TimersStore {
                         .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
                     self?.loaded = true
                     self?.syncLiveActivity()
+                }
+            },
+            user.collection("excludedDays").addSnapshotListener { [weak self] snap, _ in
+                guard let snap else { return }
+                MainActor.assumeIsolated {
+                    self?.excludedDays = Set(snap.documents.map(\.documentID))
                 }
             },
             sessions.whereField("endedAt", isEqualTo: NSNull())
@@ -126,6 +134,24 @@ final class TimersStore {
         return total
     }
 
+    /// Activity types grouped for display: ungrouped types (including ones whose
+    /// group no longer exists) first, then each non-empty group in order.
+    var typeSections: [TypeSection] {
+        let groupIds = Set(groups.map(\.id))
+        let ungrouped = types.filter { $0.groupId.map { !groupIds.contains($0) } ?? true }
+        var result: [TypeSection] = []
+        if !ungrouped.isEmpty {
+            result.append(TypeSection(group: nil, types: ungrouped))
+        }
+        for group in groups {
+            let members = types.filter { $0.groupId == group.id }
+            if !members.isEmpty {
+                result.append(TypeSection(group: group, types: members))
+            }
+        }
+        return result
+    }
+
     func name(ofType id: String) -> String {
         types.first { $0.id == id }?.name ?? "Unknown"
     }
@@ -180,7 +206,8 @@ final class TimersStore {
             return TodaySnapshot.otherGroupId
         }
 
-        var out = groups.map { TodaySnapshot.Group(id: $0.id, name: $0.name, finishedSeconds: 0) }
+        var out = groups.filter(\.showOnWidget)
+            .map { TodaySnapshot.Group(id: $0.id, name: $0.name, finishedSeconds: 0) }
         if types.contains(where: { groupId(ofType: $0.id) == TodaySnapshot.otherGroupId }) {
             out.append(.init(id: TodaySnapshot.otherGroupId, name: "Other", finishedSeconds: 0))
         }
@@ -204,4 +231,11 @@ final class TimersStore {
             WidgetCenter.shared.reloadTimelines(ofKind: TodaySnapshot.widgetKind)
         }
     }
+}
+
+struct TypeSection: Identifiable {
+    /// nil for activities without a (valid) group.
+    let group: ActivityGroup?
+    let types: [ActivityType]
+    var id: String { group?.id ?? "" }
 }

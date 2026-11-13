@@ -5,7 +5,9 @@ struct SessionsView: View {
     let timers: TimersStore
 
     @State private var store: SessionsStore
-    @State private var day = Calendar.current.startOfDay(for: .now)
+    @State private var day = Calendar.current.date(
+        byAdding: .day, value: -(DebugLaunch.sessionsDaysAgo ?? 0),
+        to: Calendar.current.startOfDay(for: .now))!
     @State private var editing: Session?
     @State private var adding = false
 
@@ -18,6 +20,14 @@ struct SessionsView: View {
 
     var body: some View {
         List {
+            Section {
+                Toggle(isOn: excludedBinding) {
+                    Label("Leave out of stats", systemImage: "chart.line.downtrend.xyaxis")
+                }
+            } footer: {
+                Text("For days that weren't fully tracked. Days with no sessions are always left out.")
+            }
+
             if store.loaded && store.sessions.isEmpty {
                 ContentUnavailableView(
                     "No Sessions",
@@ -43,18 +53,23 @@ struct SessionsView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 4) {
+                    Button("Previous Day", systemImage: "chevron.left") { shiftDay(-1) }
+                        .labelStyle(.iconOnly)
+                        .frame(width: 36, height: 36)
+                    DatePicker("Day", selection: dayBinding, in: ...Date.now, displayedComponents: .date)
+                        .labelsHidden()
+                    Button("Next Day", systemImage: "chevron.right") { shiftDay(1) }
+                        .labelStyle(.iconOnly)
+                        .frame(width: 36, height: 36)
+                        .disabled(isToday)
+                }
+                .fontWeight(.semibold)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Add Session", systemImage: "plus") { adding = true }
                     .disabled(timers.types.isEmpty)
-            }
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button("Previous Day", systemImage: "chevron.left") { shiftDay(-1) }
-                Spacer()
-                DatePicker("Day", selection: dayBinding, in: ...Date.now, displayedComponents: .date)
-                    .labelsHidden()
-                Spacer()
-                Button("Next Day", systemImage: "chevron.right") { shiftDay(1) }
-                    .disabled(isToday)
             }
         }
         .task(id: day) { await store.listen(day: day) }
@@ -79,6 +94,14 @@ struct SessionsView: View {
         if isToday { return "Today" }
         if Calendar.current.isDateInYesterday(day) { return "Yesterday" }
         return day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+
+    private var excludedBinding: Binding<Bool> {
+        let key = dayKey(day)
+        return Binding(
+            get: { timers.excludedDays.contains(key) },
+            set: { TimerActions.setDayExcluded(key, $0, uid: timers.uid) }
+        )
     }
 
     private var dayBinding: Binding<Date> {

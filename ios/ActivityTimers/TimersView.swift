@@ -1,62 +1,21 @@
 import SwiftUI
 
+/// The main screen: start/stop buttons for each activity with today's totals.
 struct TimersView: View {
-    let onSignOut: () -> Void
-    @State private var store: TimersStore
-    @State private var path: [Screen] = []
-
-    private enum Screen: Hashable {
-        case stats, sessions
-    }
-
-    init(uid: String, onSignOut: @escaping () -> Void) {
-        self.onSignOut = onSignOut
-        _store = State(initialValue: TimersStore(uid: uid))
-    }
+    let store: TimersStore
 
     var body: some View {
-        NavigationStack(path: $path) {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                content(now: context.date)
-            }
-            .navigationTitle("Today")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if store.hasPendingWrites {
-                        Label("Not synced yet", systemImage: "icloud.slash")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: Screen.stats) {
-                        Label("Stats", systemImage: "chart.xyaxis.line")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: Screen.sessions) {
-                        Label("Sessions", systemImage: "list.bullet.rectangle")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Sign Out", role: .destructive, action: onSignOut)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
-            .navigationDestination(for: Screen.self) { screen in
-                switch screen {
-                case .stats: StatsView(timers: store)
-                case .sessions: SessionsView(timers: store)
-                }
-            }
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            content(now: context.date)
         }
-        .task { await store.run() }
-        // Widget / Live Activity taps open activitytimers://timers: go back to the
-        // main screen (popping a pushed screen also dismisses its sheets).
-        .onOpenURL { url in
-            if url.host == timersScreenURL.host { path = [] }
+        .navigationTitle("Today")
+        .toolbar {
+            if store.hasPendingWrites {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Label("Not synced yet", systemImage: "icloud.slash")
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -66,17 +25,17 @@ struct TimersView: View {
             ContentUnavailableView(
                 "No Activities",
                 systemImage: "timer",
-                description: Text("Add activity types to Firestore with scripts/seed.sh.")
+                description: Text("Add activities in Settings.")
             )
         } else {
             List {
-                ForEach(sections, id: \.id) { section in
+                ForEach(store.typeSections) { section in
                     Section {
                         ForEach(section.types) { type in
                             row(type, now: now)
                         }
                     } header: {
-                        if let title = section.title { Text(title) }
+                        if let group = section.group { Text(group.name) }
                     }
                 }
             }
@@ -126,31 +85,9 @@ struct TimersView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-            .padding()
-            .background(.bar)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
-    }
-
-    private struct ListSection {
-        let id: String
-        let title: String?
-        let types: [ActivityType]
-    }
-
-    private var sections: [ListSection] {
-        let groupIds = Set(store.groups.map(\.id))
-        let ungrouped = store.types.filter { $0.groupId.map { !groupIds.contains($0) } ?? true }
-        var result: [ListSection] = []
-        if !ungrouped.isEmpty {
-            result.append(ListSection(id: "", title: nil, types: ungrouped))
-        }
-        for group in store.groups {
-            let types = store.types.filter { $0.groupId == group.id }
-            if !types.isEmpty {
-                result.append(ListSection(id: group.id, title: group.name, types: types))
-            }
-        }
-        return result
     }
 }
 

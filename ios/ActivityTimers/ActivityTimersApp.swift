@@ -15,7 +15,7 @@ struct ActivityTimersApp: App {
     var body: some Scene {
         WindowGroup {
             if let uid = auth.uid {
-                TimersView(uid: uid, onSignOut: auth.signOut)
+                MainView(uid: uid, onSignOut: auth.signOut)
                     .id(uid)
             } else {
                 SignInView(auth: auth)

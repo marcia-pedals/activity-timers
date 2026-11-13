@@ -59,6 +59,16 @@ enum TimerActions {
         }
     }
 
+    /// Marks a day as incomplete (left out of stats), or clears the mark.
+    static func setDayExcluded(_ key: String, _ excluded: Bool, uid: String) {
+        let doc = Firestore.firestore().collection("users").document(uid)
+            .collection("excludedDays").document(key)
+        let done: (Error?) -> Void = { error in
+            if let error { print("excluded day write failed: \(error)") }
+        }
+        if excluded { doc.setData([:], completion: done) } else { doc.delete(completion: done) }
+    }
+
     /// Stops all running sessions without needing a TimersStore (used by the Live
     /// Activity's Stop button, which may run with the app in the background).
     static func stopAllRunning() async {

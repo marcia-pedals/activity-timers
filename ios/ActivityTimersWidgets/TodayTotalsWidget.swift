@@ -89,7 +89,7 @@ struct TodayTotalsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
         } else {
-            Text("Open GoodBadTime to start tracking")
+            Text(entry.snapshot == nil ? "Open GoodBadTime to start tracking" : "No groups shown. Choose some in Settings.")
                 .font(.caption)
         }
     }

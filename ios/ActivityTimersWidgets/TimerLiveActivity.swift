@@ -63,23 +63,22 @@ struct TimerLiveActivity: Widget {
     }
 }
 
+/// Just the activity's icon, the current session's timer, and Stop.
 private struct LockScreenView: View {
     let state: TimerActivityAttributes.ContentState
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 14) {
             ActivityIcon(state: state)
-                .font(.title)
-                .frame(width: 36)
-            VStack(alignment: .leading, spacing: 4) {
-                NameView(state: state)
-                TodayTotal(state: state, style: .relative)
-            }
-            Spacer(minLength: 8)
-            SessionTimer(state: state, style: .relative)
-                .font(.title2.weight(.semibold))
+                .font(.largeTitle)
+                .frame(width: 48)
+            // Date text claims all available width, so it fills the space up to
+            // the button instead of a Spacer.
+            SessionTimer(state: state, style: .relative, alignment: .leading)
+                .font(.title.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             StopButton()
         }
     }
@@ -114,11 +113,12 @@ private struct NameView: View {
 private struct SessionTimer: View {
     let state: TimerActivityAttributes.ContentState
     var style: Text.DateStyle = .timer
+    var alignment: TextAlignment = .trailing
 
     var body: some View {
         Text(state.sessionStartedAt, style: style)
             .monospacedDigit()
-            .multilineTextAlignment(.trailing)
+            .multilineTextAlignment(alignment)
     }
 }
 
