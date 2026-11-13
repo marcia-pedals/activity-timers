@@ -31,7 +31,7 @@ struct SignInView: View {
                     if let error { Text(error).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Activity Timers")
+            .navigationTitle("GoodBadTime")
         }
     }
 

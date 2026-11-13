@@ -89,7 +89,7 @@ struct TodayTotalsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
         } else {
-            Text("Open Timers to start tracking")
+            Text("Open GoodBadTime to start tracking")
                 .font(.caption)
         }
     }
